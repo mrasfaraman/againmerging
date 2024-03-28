@@ -55,6 +55,12 @@ const Token = ({navigation}) => {
     }));
   };
 
+  useEffect(()=>{
+    if(tokenDetail.tokenAddress != ''){
+      importToken(selectedNetworkParse)
+    }
+  },[tokenDetail.tokenAddress])
+
   const addTokenDetail = (data) => {
     addToken(data);
     navigation.navigate('MainPage')
@@ -98,13 +104,14 @@ const Token = ({navigation}) => {
         setLoader(true)
         
         let responce = await importTronToken(walletAddress , tokenDetail.tokenAddress );
+        console.log(responce)
         if(!responce){
           setLoader(false)
-          Toast.show({
-            type: ALERT_TYPE.DANGER,
-            title: 'Network Error',
-            textBody: 'Network is Not ok',
-          })
+          // Toast.show({
+          //   type: ALERT_TYPE.DANGER,
+          //   title: 'Network Error',
+          //   textBody: 'Network is Not ok',
+          // })
         }else{
           setLoader(false)
           console.log(responce)
@@ -174,7 +181,6 @@ const Token = ({navigation}) => {
                 styles.inpWrapper,
                 {
                   backgroundColor: theme.menuItemBG,
-                  color: theme.text,
                   paddingVertical: 20,
                   borderColor: theme.addButtonBorder,
                   borderWidth: 1,
@@ -190,7 +196,6 @@ const Token = ({navigation}) => {
                 styles.inpWrapper,
                 {
                   backgroundColor: theme.menuItemBG,
-                  color: theme.text,
                   paddingVertical: 25,
                   borderColor: theme.addButtonBorder,
                   borderWidth: 1,
@@ -206,7 +211,6 @@ const Token = ({navigation}) => {
                 styles.inpWrapper,
                 {
                   backgroundColor: theme.menuItemBG,
-                  color: theme.text,
                   paddingVertical: 25,
                   borderColor: theme.addButtonBorder,
                   borderWidth: 1,
@@ -217,7 +221,7 @@ const Token = ({navigation}) => {
       </View>
       <View style={styles.tokenImportBtnWrapper}>
       <SubmitBtn
-              title={!toggle ? t('import'): 'Add Token'}
+              title={!toggle ? t('import'): t('add_token')}
               onPress={() =>
                 !toggle
                   ? importToken(selectedNetworkParse)

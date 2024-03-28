@@ -1,8 +1,8 @@
 
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// const BASE_URI ='https://c520-111-88-26-128.ngrok-free.app';
-const BASE_URI ='https://wave-backend-zulg.onrender.com';
+const BASE_URI ='https://c520-111-88-26-128.ngrok-free.app';
+// const BASE_URI ='https://wave-backend-zulg.onrender.com';
 
 const KEY = '5416846351sd4sf51sd3f51sd8f4sd6f51sd35f16sd8f'
 ///////////////////////////////////////////////////////////////
@@ -541,6 +541,14 @@ const bridge_emv_tron = async ( fromAddress, toAddress , in_symbol , out_symbol 
         console.error('Failed to fetch data:', error);
     }
 }
+const bridge_tron = async ( fromAddress, toAddress , in_symbol , out_symbol , chain , amount , privateKey , recepentChain) => {
+    try {
+        const responseData = await postData(BASE_URI + '/bridgingTron', { fromAddress, toAddress , in_symbol , out_symbol , chain , amount , privateKey , recepentChain});
+        return responseData
+    } catch (error) {
+        console.error('Failed to fetch data:', error);
+    }
+}
 const bridge_gas_emv_tron = async ( fromAddress, toAddress , in_symbol , out_symbol , chain , amount , privateKey , recepentChain) => {
     try {
         const responseData = await postData(BASE_URI + '/gasbridgingEVM_Tron', { fromAddress, toAddress , in_symbol , out_symbol , chain , amount , privateKey , recepentChain});
@@ -660,6 +668,7 @@ async function postData(apiUrl, data) {
     }
 }
 export {
+    bridge_tron,
     bridge_gas_emv_tron,
     importTronToken,
     sendTronToken,

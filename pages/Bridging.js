@@ -30,7 +30,8 @@ import {
   importEVMToken,
   importSolToken,
   bridge_emv_tron,
-  bridge_gas_emv_tron
+  bridge_gas_emv_tron,
+  bridge_tron
 } from '../utils/function';
 import {
   ALERT_TYPE,
@@ -176,6 +177,8 @@ const Bridging = ({navigation}) => {
   const [topValueUsd, setTopUSDValue] = useState();
   const [bottomValueUsd, setBottomUSDValue] = useState();
 
+  const [bottomRecepentAddress, setBottomRecepentAddress] = useState('');
+
   const onMaxValue = async () => {
     if (slectedNetUp?.type == 'evm') {
       setinputUp(Number(ballanceUp)?.toFixed(3)?.toString());
@@ -310,11 +313,25 @@ const Bridging = ({navigation}) => {
   };
 
   const bridged = async () => {
-    if (activeNet?.type == 'evm') {
+    let toAddress = selectedAccount?.[slectedNetUp?.type].address || selectedAccount?.[slectedNetUp?.type].publicKey
+    let fromAddress = selectedAccount?.[slectedNetDown?.type].address || selectedAccount?.[slectedNetDown?.type].publicKey
+    let fromAddressKey = selectedAccount?.[slectedNetDown?.type].privateKey || selectedAccount?.[slectedNetDown?.type].secretKey
+    if(fromAddressKey == '----'){
+      if(bottomRecepentAddress != ''){
+        fromAddress = bottomRecepentAddress
+      }else{
+        Toast.show({
+          type: ALERT_TYPE.DANGER,
+          title: 'Invalid Address',
+          textBody: 'Address Is not Valid',
+        })
+      }
+    }
+    if (slectedNetUp?.type == 'evm') {
       setLoading(true)
       let responceGas = await bridge_gas_emv_tron(
-        topToken?.address || topToken?.token_address,
-        bottomToken?.address || bottomToken?.token_address,
+        toAddress,
+        fromAddress,
         topToken?.symbol,
         bottomToken?.symbol,
         slectedNetUp,
@@ -323,7 +340,7 @@ const Bridging = ({navigation}) => {
         slectedNetDown
       );
       console.log(">>>>>>>>>>",responceGas)
-      if(ballanceUp < inputUp){
+      if(ballanceUp > inputUp){
         setLoading(false)
         Dialog.show({
           type: ALERT_TYPE.SUCCESS,
@@ -334,8 +351,8 @@ const Bridging = ({navigation}) => {
             try {
               setLoading(true)
               let responce = await bridge_emv_tron(
-                topToken?.address || topToken?.token_address,
-                bottomToken?.address || bottomToken?.token_address,
+                toAddress,
+                fromAddress,
                 topToken?.symbol,
                 bottomToken?.symbol,
                 slectedNetUp,
@@ -381,27 +398,80 @@ const Bridging = ({navigation}) => {
           textBody: 'insufficient balance for Bridging',
         });
       }
-      // if (slectedNetUp?.type == 'evm' && slectedNetDown?.type == 'tron') {
-      //   // console.log(inputUp);
-      //   // console.log(slectedNetUp?.nodeURL);
-      //   // console.log(slectedNetDown?.nodeURL);
-      //   // console.log(topToken?.address || topToken?.token_address);
-      //   // console.log(bottomToken?.address || bottomToken?.token_address);
-      //   // console.log(topToken?.symbol);
-      //   // console.log(bottomToken?.symbol);
-      //   // console.log(address.replace(/^"|"$/g, ''));
-      //   // console.log(selectedAccount?.evm?.privateKey);
+
+    }else if(slectedNetUp?.type == 'tron'){
+     
+        setLoading(true)
+        let responceGas = await bridge_gas_emv_tron(
+          toAddress,
+          fromAddress,
+          topToken?.symbol,
+          bottomToken?.symbol,
+          slectedNetUp,
+          inputUp,
+          selectedAccount?.evm?.privateKey,
+          slectedNetDown
+        );
+        console.log(">>>>>>>>>>",responceGas)
+        if(ballanceUp > inputUp){
+          setLoading(false)
+          Dialog.show({
+            type: ALERT_TYPE.SUCCESS,
+            title: 'Confirmation',
+            textBody: `Are You Sure You Want to Bridge Token! \n Platform Fee: ${Number(responceGas?.getFee)?.toFixed(5)} ${slectedNetUp?.symbol} \n Estimated Time: ${Number(responceGas?.time)} Min`,
+            button: 'Confirm Bridge',
+            onPressButton: async () => {  
+              try {
+                setLoading(true)
+                let responce = await bridge_tron(
+                  toAddress,
+                  fromAddress,
+                  topToken?.symbol,
+                  bottomToken?.symbol,
+                  slectedNetUp,
+                  inputUp,
+                  selectedAccount?.tron?.privateKey,
+                  slectedNetDown
+                );
+                console.log(">>>>>>>>>>",responce.transactionHash.txid)
+                if (responce) {
+                  setLoading(false)
+                  Toast.show({
+                    type: ALERT_TYPE.INFO,
+                    title: responce?.transactionHash?.code,
+                    textBody: responce?.transactionHash?.txid,
+                  })
+                  navigation.navigate("MainPage")
+                }else{
+                  Toast.show({
+                    type: ALERT_TYPE.INFO,
+                    title: 'insufficient balance',
+                    textBody: 'insufficient balance for Bridging / Network Error',
+                  })
+                  setLoading(false)
+                }
+              } catch (error) {
+                setLoading(false)
+                Toast.show({
+                  type: ALERT_TYPE.WARNING,
+                  title: 'Network Error',
+                  textBody: 'Network Not Responding.',
+                })
+              }
+  
+              Dialog.hide()
+            },
+          });
+          
+        }else{
+          setLoading(false)
+          Toast.show({
+            type: ALERT_TYPE.WARNING,
+            title: 'insufficient balance',
+            textBody: 'insufficient balance for Bridging',
+          });
+        }
       
-
-        
-
-      // } else {
-      //   Toast.show({
-      //     type: ALERT_TYPE.WARNING,
-      //     title: 'Invalid',
-      //     textBody: 'Selact Valid Network or Token',
-      //   });
-      // }
     } else {
       Toast.show({
         type: ALERT_TYPE.WARNING,
@@ -492,6 +562,16 @@ const Bridging = ({navigation}) => {
     getNetworkactive();
   }, []);
 
+  function filterObjectByKeys(obj, keys) {
+    const filteredObj = {};
+    keys.forEach(key => {
+        if (obj.hasOwnProperty(key)) {
+            filteredObj[key] = obj[key];
+        }
+    });
+    return filteredObj;
+}
+
   const BridgCard_up = () => {
     return (
       <View
@@ -543,7 +623,8 @@ const Bridging = ({navigation}) => {
               keyExtractor={(item, index) => item.id || index.toString()}
               renderItem={({item, index}) => {
                 // && index !== 4 && index !== 3
-                if (index !== 1 && index !== 0 ) {
+                
+                if (index !== 1 && index !== 0 && index !== 4) {
                   return;
                 } else if (item == slectedNetDown) {
                   return;
@@ -551,9 +632,21 @@ const Bridging = ({navigation}) => {
                 return (
                   <TouchableOpacity
                     onPress={() => {
+                      const filteredData = filterObjectByKeys(selectedAccount, [item?.type]);
+                      console.log(filteredData?.[item?.type]?.privateKey)
+                      console.log(filteredData?.[item?.type]?.secretKey)
+                    if(filteredData?.[item?.type]?.privateKey == '----' || filteredData?.[item?.type]?.secretKey == '----'){
+                      Dialog.show({
+                        type: ALERT_TYPE.WARNING,
+                        title: 'Account Not Available',
+                        textBody: 'Switch Other Account',
+                      });
+                    }else{
                       setSelectedNetUp(item);
                       setModalVisibleNetworkUp(!modalVisibleNetworkUp);
-                      setTopToken(null);
+                    }
+                    setTopToken(null);
+                      
                     }}>
                     <View
                       style={[
@@ -877,6 +970,24 @@ const Bridging = ({navigation}) => {
   };
 
   const BridgCard_down = () => {
+    const [get_Input, set_Input] = useState(false)
+    useEffect(()=>{
+      const filteredData = filterObjectByKeys(selectedAccount, [slectedNetDown?.type]);
+      let key = filteredData?.[slectedNetDown?.type]?.privateKey || filteredData?.[slectedNetDown?.type]?.secretKey
+      if(key == '----'){
+        set_Input(true)
+      }else{
+        set_Input(false)
+      }
+    },[slectedNetDown])
+
+  // if(filteredData?.[item?.type]?.privateKey == '----' || filteredData?.[item?.type]?.secretKey == '----'){
+  //   Dialog.show({
+  //     type: ALERT_TYPE.WARNING,
+  //     title: 'Account Not Available',
+  //     textBody: 'Switch Other Account',
+  //   });
+  // }
     return (
       <View
         style={[styles.swapCardWrapper, {backgroundColor: theme.menuItemBG}]}>
@@ -971,6 +1082,8 @@ const Bridging = ({navigation}) => {
                           {item.nodeURL || item.explorerURL}
                         </Text>
                       </View>
+                  
+
                     </View>
                   </TouchableOpacity>
                 );
@@ -1219,9 +1332,30 @@ const Bridging = ({navigation}) => {
                     {t('max')}
                   </Text>
                 </TouchableOpacity>
+                
               </>
             )}
           </View>
+          {get_Input && (
+          <View style={styles.amountWrapper}>
+          <Text style={[styles.ammountText, {color: theme.text}]}>
+            Recepent Address
+          </Text>
+          <View  style={styles.amountInpWrapperFlex}>
+                       <TextInput
+                       editable={true}
+                       placeholder="0xsda..."
+                       onChangeText={setBottomRecepentAddress}
+                       value={bottomRecepentAddress}
+                       style={[
+                         styles.inputWrapper,
+                         {backgroundColor: theme.rightArrowBG, color: theme.text},
+                       ]}
+                       placeholderTextColor={theme.text}
+                     />
+          </View>
+          </View>
+                )}
         </View>
         {loadingValueDown ? (
           <MaroonSpinner />
